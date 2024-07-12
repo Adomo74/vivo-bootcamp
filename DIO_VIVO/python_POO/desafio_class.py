@@ -1,8 +1,9 @@
+import datetime
 from abc import ABC, abstractproperty, abstractmethod
 
 conta = 0
 
-
+transacoes = []
 contas = []
 usuarios = []
 
@@ -107,10 +108,10 @@ class corrente(conta):
     def sacar(self, vds):
         n_saques =  len([transacao for transacao in self.historico.transacoes if transacao["tipo"] == saque.__name__])
 
-        exe_limit = vds > self.limit
+        limit_saldo = vds > self.limit
         exe_limit_saques = n_saques >= self.tentativas
 
-        if exe_limit:
+        if limit_saldo:
             print("Operação falha!\n Excedeu o limite")
 
         elif exe_limit_saques:
@@ -119,21 +120,70 @@ class corrente(conta):
         else:
             return super().sacar(vds)
         return False
+
+    def __str__(self):
+        return f"""\
+            Agência:\t{self.agencia}
+            C/C:\t\t{self.number}
+            Titular:\t{self.client.nome}
+            """
     pass
 
 
 class historico():
     def __init__(self):
-        self.transacoes = []
+        self._transacoes = []
+
+    @property
+    def transacoes(self):
+        return self._transacoes
 
     def add_transacao(self, transacao):
+        self._transacoes.append(
+            {
 
-    pass
+                "tipo": transacao.__class__.__name__,
+                "valor": transacao.valor,
+                "data":datetime.now().strftime("%d-%m-%Y %H:%M:%s"),
+            }
+        )
 
 
 class transacao(ABC):
-    pass
+    @property
+    @abstractproperty
+    def valor(self):
+        pass
+
+    @abstractproperty
+    def registrar(self, conta):
+        pass
 
 
 class saque(transacao):
+    def __init__(self,vds):
+        self._vds = vds
+
+    @property
+    def valor(self):
+        return self._vds
+
+    def registrar(self, conta):
+        true_transacao = conta.sacar(self.valor)
+
+        if true_transacao:
+            conta.historico.add_transacao(self)
     pass
+
+
+class deposito(transacao):
+    def __init__(self, valor):
+        self._valor = valor
+
+    @property
+    def valor(self):
+        return self._valor
+
+    def registrar(self, conta):
+        if conta.depositar(self.valor):
+            conta.historico.adicionar_transacao(self)
